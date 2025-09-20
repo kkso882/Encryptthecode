@@ -1,58 +1,81 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lua Obfuscator & Deobfuscator</title>
+<title>Advanced Lua Obfuscator & Deobfuscator</title>
 <style>
-  body { background:#1e1e1e; color:#eee; font-family: monospace; display:flex; flex-direction:column; align-items:center; padding:20px;}
-  textarea { width:90%; height:150px; margin:10px 0; background:#2e2e2e; color:#eee; border:none; padding:10px; resize:none;}
+  body { background:#111; color:#eee; font-family: monospace; display:flex; flex-direction:column; align-items:center; padding:20px;}
+  textarea { width:90%; height:150px; margin:10px 0; background:#222; color:#eee; border:none; padding:10px; resize:none;}
   button { padding:10px 20px; margin:5px; background:#444; color:#eee; border:none; cursor:pointer;}
   button:hover { background:#555; }
   h1 { font-size:24px; }
 </style>
 </head>
 <body>
-<h1>Lua Obfuscator & Deobfuscator</h1>
+<h1>Advanced Lua Obfuscator & Deobfuscator</h1>
 
-<textarea id="input" placeholder="วาง Lua script หรือข้อความตรงนี้"></textarea>
+<textarea id="input" placeholder="Paste your Lua script or text here"></textarea>
 <div>
   <button onclick="obfuscate()">Obfuscate</button>
   <button onclick="deobfuscate()">Deobfuscate</button>
 </div>
-<textarea id="output" placeholder="ผลลัพธ์จะปรากฏที่นี่"></textarea>
+<textarea id="output" placeholder="Result will appear here"></textarea>
 
 <script>
-function obfuscate() {
-    let code = document.getElementById('input').value;
-    if(!code) return alert("ใส่สคริปก่อนครับ!");
-    
-    // ขั้นตอนเข้ารหัสแบบง่ายแต่สับสน
-    let result = code.split('').map(c => {
-        return '\\x'+c.charCodeAt(0).toString(16);
-    }).join('');
-
-    // เพิ่ม wrapper Lua สำหรับ decode กลับ
-    let luaObf = `loadstring((function(s)local r="" for i=1,#s,4 do r=r..string.char(tonumber(s:sub(i,i+3),16)) end return r end)("${result}"))()`;
-    document.getElementById('output').value = luaObf;
+// Generate random function/variable names
+function randName(len=6){
+  let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let s='';
+  for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
 }
 
-function deobfuscate() {
-    let code = document.getElementById('input').value;
-    if(!code) return alert("ใส่สคริปก่อนครับ!");
-    
-    // ตรวจสอบ pattern ของ Obfuscator ด้านบน
-    let match = code.match(/"\(function.*\)\("([^"]*)"\)\)\(\)/s);
-    if(match && match[1]){
-        let hexStr = match[1];
-        let text = '';
-        for(let i=0;i<hexStr.length;i+=4){
-            text += String.fromCharCode(parseInt(hexStr.substr(i,4),16));
-        }
-        document.getElementById('output').value = text;
-    } else {
-        alert("ไม่พบสคริปต์ที่เข้ารหัสแบบนี้ครับ!");
-    }
+// Advanced Obfuscator
+function obfuscate(){
+  let code = document.getElementById('input').value;
+  if(!code) return alert("Please enter a script first!");
+  
+  // Create dummy functions to confuse
+  let dummyFuncs = '';
+  for(let i=0;i<3;i++){
+    let fname = randName();
+    dummyFuncs += `function ${fname}() return ${Math.floor(Math.random()*1000)} end\n`;
+  }
+
+  // Encode characters to base36 + insert dummy code
+  let encoded = code.split('').map(c=>c.charCodeAt(0).toString(36)).join(',');
+  
+  let mainFuncName = randName();
+  let luaObf = `
+${dummyFuncs}
+local ${mainFuncName}=function()
+  local s="${encoded}"
+  local t=""
+  for v in s:gmatch("([^,]+)") do
+    t=t..string.char(tonumber(v,36))
+  end
+  return t
+end
+loadstring(${mainFuncName}())()
+`;
+  document.getElementById('output').value = luaObf;
+}
+
+// Deobfuscator for this format
+function deobfuscate(){
+  let code = document.getElementById('input').value;
+  if(!code) return alert("Please enter a script first!");
+  
+  let match = code.match(/local (\w+)=function\(\)\s+local s="([^"]+)"/s);
+  if(match && match[2]){
+    let nums = match[2].split(',');
+    let text = '';
+    nums.forEach(n=>{ text+=String.fromCharCode(parseInt(n,36)); });
+    document.getElementById('output').value = text;
+  } else {
+    alert("No encoded script found in this format!");
+  }
 }
 </script>
 </body>
